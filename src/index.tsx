@@ -15,7 +15,7 @@ const Idx = () => {
     const handleClick = async () => {
         const images = await Promise.all(files.map(file => file.arrayBuffer()));
         const byteArrays = images.map(buffer => new Uint8Array(buffer));
-        test(byteArrays);
+        await test(byteArrays);  // Ensure we wait for the test function to complete
     };
 
     return (
@@ -55,17 +55,23 @@ async function test(images: Uint8Array[]) {
 
     await initializeImageMagick(wasmBytes);
 
-    images.forEach((image, index) => {
-        ImageMagick.read(image, (magickImage) => {
-            magickImage.write(MagickFormat.Jpeg, (jpegData) => {
-                const blob = new Blob([jpegData], { type: 'image/jpeg' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `image_${index + 1}.jpeg`;
-                a.click();
-                URL.revokeObjectURL(url);
+    // Use a loop to handle asynchronous read and write operations
+    for (let i = 0; i < images.length; i++) {
+        const image = images[i];
+        await new Promise<void>((resolve) => {
+            ImageMagick.read(image, (magickImage) => {
+                magickImage.write(MagickFormat.Jpeg, (jpegData) => {
+                    const blob = new Blob([jpegData], { type: 'image/jpeg' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `image_${i + 1}.jpeg`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    console.log(`Processed image ${i + 1}`);
+                    resolve();  // Resolve the promise once the image is processed
+                });
             });
         });
-    });
+    }
 }
